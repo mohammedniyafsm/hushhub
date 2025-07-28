@@ -14,13 +14,13 @@ export default function CreateRoom() {
       {/* Foreground Content */}
       <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
         <h1
-          className={`${bricolage_grotesque} text-5xl font-bold text-white drop-shadow-md`}
+          className={`${bricolage_grotesque} text-6xl font-bold text-white drop-shadow-md`}
         >
           Create Room
         </h1>
 
         <div className="flex flex-col mt-8 gap-4 w-80">
-          <Input placeholder="Room Code" />
+          <Input placeholder="Username" />
           <Input placeholder="Room Name" />
           <Input placeholder="Description" />
         </div>

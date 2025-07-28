@@ -16,7 +16,7 @@ export default function JoinRoom() {
         <h1 className={`${bricolage_grotesque} text-5xl font-bold text-white`}>
           Welcome to HushHub
         </h1>
-        <p className={`${inter} text-lg mt-4 text-gray-200 max-w-xl`}>
+        <p className={`${inter} text-md mt-4 text-gray-200 max-w-xl`}>
           Enter your private space and connect securely with others.
         </p>
         <div className="flex flex-col mt-6 gap-4">
