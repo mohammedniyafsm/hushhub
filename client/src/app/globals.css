@@ -151,6 +151,17 @@
   --color-5: oklch(90.7% 0.231 133);
 }
 
+/* Hide scrollbar but allow scroll */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE & Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

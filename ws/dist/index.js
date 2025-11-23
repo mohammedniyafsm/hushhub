@@ -4,7 +4,6 @@ const allSocket = new Map();
 const availableRooms = new Map();
 const wss = new WebSocketServer({ port: 8080 });
 wss.on("connection", (ws) => {
-    // Assign userId ONCE per ws connection
     const connectedUserId = Math.floor(Math.random() * 10000).toString();
     allSocket.set(ws, { userId: connectedUserId, username: "", roomId: "" });
     ws.on("message", (message) => {
@@ -32,20 +31,14 @@ wss.on("connection", (ws) => {
                 owner: { username, userId: connectedUserId }
             });
             ws.send(JSON.stringify({
-                type: "success",
+                type: "room-created-success",
                 payload: {
                     roomId,
-                    owner: username,
                     room_name,
-                    userId: connectedUserId
-                }
-            }));
-            console.log(JSON.stringify({
-                type: "success",
-                payload: {
-                    roomId,
-                    owner: username,
-                    room_name,
+                    description,
+                    password: password,
+                    admin: username,
+                    username: username,
                     userId: connectedUserId
                 }
             }));
@@ -66,7 +59,6 @@ wss.on("connection", (ws) => {
                 ws.send(JSON.stringify({ type: "error", message: "Wrong password" }));
                 return;
             }
-            // Update connected user data
             allSocket.set(ws, { userId: connectedUserId, username, roomId });
             // Add to room
             room.members.push({ username, userId: connectedUserId, roomId });
@@ -84,7 +76,19 @@ wss.on("connection", (ws) => {
                     user: { username, userId: connectedUserId }
                 }));
             }
-            ws.send(JSON.stringify({ type: "success", message: "Joined Room Successfully" }));
+            ws.send(JSON.stringify({
+                type: "joined-room",
+                message: "Joined Room Successfully",
+                payload: {
+                    roomId: room.roomId,
+                    room_name: room.room_name,
+                    description: room.description,
+                    password,
+                    userId: connectedUserId,
+                    username,
+                    admin: room.owner.username
+                }
+            }));
             return;
         }
         if (response.type === "chat") {
@@ -104,12 +108,9 @@ wss.on("connection", (ws) => {
                     .find(([sock, u]) => u.userId === member.userId)?.[0];
                 if (!memberSocket)
                     continue;
-                if (member.userId === userId)
-                    continue;
                 memberSocket.send(JSON.stringify({
                     type: "chat-message",
-                    message,
-                    from: { username: userExist.username, userId }
+                    payload: { username: userExist.username, userId, roomId, message }
                 }));
             }
         }

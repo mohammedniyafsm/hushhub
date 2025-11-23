@@ -5,40 +5,41 @@ import { Particles } from "@/components/ui/particles";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import { bricolage_grotesque, inter } from "@/lib/font";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import {  useEffect, useState } from "react";
+import { useWs } from "../context/WebSocketContext";
+import { useRouter } from "next/navigation";
 
 export default function JoinRoom() {
 
   const [username,setUsername] = useState("");
-  const [roomId,setRoomId] = useState("");
+  const [room_Id,setRoomId] = useState("");
   const [password,setPassword] = useState("");
+  const router = useRouter(); 
 
-  const socket = useRef<WebSocket | null>(null);
-
-  useEffect(()=>{
-    try {
-      socket.current = new WebSocket("ws://localhost:8080");
-      console.log("Joined Room");
-    } catch (error) {
-      console.log("Error while join web server",error)
-    }
-  },[])
+  const { send } =useWs();
 
   const JoinRoom =()=>{
     try {
-       socket?.current?.send(JSON.stringify({
+      send({
       type : "join",
       payload : {
         username : username.trim(),
-        roomId : roomId.trim(),
+        roomId : room_Id.trim(),
         password : password.trim()
       }
-    }));
-     console.log("jpoiedr om")
+    })
     } catch (error) {
      console.log("cant join error",error)
     }
   }
+
+    const { roomId } = useWs();
+  
+    useEffect(() => {
+      if (roomId) {
+        router.push(`/chat`); 
+      }
+    }, [roomId, router]);
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* Particle Background */}
