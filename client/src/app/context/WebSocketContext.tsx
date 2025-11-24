@@ -20,6 +20,8 @@ interface WebSocketContextType {
   admin: string | null;
 
   messages: MessageI[];
+  totalMembers : string,
+  members : {username : string }[]
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -36,6 +38,8 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
   const [userId, setuserId] = useState<string | null>(null);
   const [admin, setadmin] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageI[]>([]);
+  const [totalMembers,setTotalMembers] = useState("");
+  const [members,setMembers] = useState<{username : string}[]>([]);
 
   useEffect(() => {
     const wsUrl =
@@ -75,22 +79,24 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
 
       // room events
       if (data.type === "room-created-success" || data.type === "joined-room") {
-        const payload = data.payload as createdRoomI;
+        const {username,roomId,room_name,password,description,userId,admin,total,members} = data.payload as createdRoomI;
 
-        setUser(payload.username);
-        setroomId(payload.roomId);
-        setRoom_name(payload.room_name);
-        setPassword(payload.password);
-        setdescription(payload.description);
-        setuserId(payload.userId);
-        setadmin(payload.admin);
+        setUser(username);
+        setroomId(roomId);
+        setRoom_name(room_name);
+        setPassword(password);
+        setdescription(description);
+        setuserId(userId);
+        setadmin(admin);
+        setTotalMembers(total.toString());
+        setMembers(members);
 
         toast(
           data.type === "room-created-success"
             ? "Room Created Successfully"
             : "Joined Room Successfully",
           {
-            icon: "👏",
+            icon: "🎉",
             style: {
               borderRadius: "10px",
               background: "#333",
@@ -101,7 +107,36 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.type === "join-notification" && data.message) {
-        toast.success(data.message);
+        const { total,members} = data.payload as MessageI;
+        setTotalMembers(total!.toString());
+        setMembers(members!);
+        toast(data.message,
+          {
+            icon: "👏",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          }
+        );
+        
+      }
+      if (data.type === "leave-notification" && data.message) {
+        const { total,members} = data.payload as MessageI;
+        setTotalMembers(total!.toString());
+        setMembers(members!);
+        toast(data.message,
+          {
+            icon: "🚪",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          }
+        );
+        
       }
 
       if (data.type === "error" && data.message) {
@@ -139,6 +174,8 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
         userId,
         admin,
         messages,
+        totalMembers,
+        members
       }}
     >
       {children}

@@ -15,5 +15,6 @@ export interface RoomI {
         userId: string;
         username: string;
     };
+    total: number;
 }
 //# sourceMappingURL=type.d.ts.map

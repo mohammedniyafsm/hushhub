@@ -1,6 +1,6 @@
 export interface DataI {
   type: string;
-  payload?: MessageI | CreateRoomI | JoinRoomI | ChatMessage |createdRoomI ;
+  payload?: MessageI | CreateRoomI | JoinRoomI | ChatMessage | createdRoomI;
   message?: string
 }
 
@@ -8,7 +8,9 @@ export interface MessageI {
   username: string;
   userId: string;
   roomId: string;
-  message: string;
+  message?: string;
+  members?: [],
+  total?: number,
 }
 
 export interface CreateRoomI {
@@ -37,9 +39,11 @@ export interface createdRoomI {
   owner: string,
   room_name: string,
   userId: string,
-  password : string,
-  admin : string,
-  username : string,
-  description : string
+  password: string,
+  admin: string,
+  username: string,
+  description: string,
+  members : {username : string} [],
+  total : number,
 }
 

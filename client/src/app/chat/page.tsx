@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useWs } from "../context/WebSocketContext";
 import { MessageI } from "../types/type";
+import { useRouter } from "next/navigation";
+
 
 function Page() {
   const {
@@ -22,10 +24,21 @@ function Page() {
     userId,
     messages,
     send,
+    totalMembers,
+    members
   } = useWs();
+
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!roomId || !room_name || !password || !username || !description) {
+      return router.push('/joinroom');
+    }
+  }, [roomId, room_name, password, username, description, router])
 
   const [newMessage, setNewMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
 
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,6 +62,18 @@ function Page() {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  function inputhandle(e :React.ChangeEvent<HTMLInputElement>) {
+    setNewMessage(e.target.value);
+    send({
+      type: "type",
+      payload: {
+        userId : userId!,
+        username : username!,
+        roomId : roomId!
+      }
+    })
+  }
 
   return (
     <div className="flex justify-center items-center pt-8  md:pt-0 px-2 hide-scrollbar">
@@ -124,6 +149,12 @@ function Page() {
             <span className="text-gray-400">Description:</span>
             <p className="text-gray-300">{description}</p>
           </div>
+          <span>total{totalMembers}</span>
+          <>
+          {members.map((s : {username : string})=>{
+            <span>{s.username}</span>
+          })}
+          </>
         </div>
 
         {/* CHAT AREA */}
@@ -145,8 +176,8 @@ function Page() {
                 {/* MESSAGE BUBBLE */}
                 <Button
                   className={`w-fit rounded-xl px-4 py-2 text-left ${isMe
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-200 text-black"
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-200 text-black"
                     }`}
                 >
                   {s.message}
@@ -163,7 +194,7 @@ function Page() {
         <div className="px-4 py-8">
           <div className="flex justify-between items-center gap-4">
             <Input
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={inputhandle}
               value={newMessage}
               className="h-8"
               placeholder="Type your message..."

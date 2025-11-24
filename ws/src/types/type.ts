@@ -16,5 +16,6 @@ export interface RoomI  {
     owner : {
         userId : string,
         username : string,
-    }
+    },
+    total : number
 }
