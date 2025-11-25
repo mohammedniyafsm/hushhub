@@ -1,8 +1,9 @@
-import type WebSocket from "ws";
+import type { WebSocket } from "ws";
 export interface UserI {
     userId: string;
     username: string;
     roomId: string;
+    blocked: boolean;
     ws?: WebSocket;
 }
 export interface RoomI {

@@ -1,51 +1,68 @@
-import { WebSocket } from "ws";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import type { RoomI, UserI } from "./types/type.js";
 
-const allSocket = new Map<WebSocket, UserI>();
-const availableRooms = new Map<string, RoomI>();
+// Maps
+const allSocket = new Map<string, UserI>();       // key = userId
+const availableRooms = new Map<string, RoomI>();  // key = roomId
 
 const wss = new WebSocketServer({ port: 8080 });
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws: WebSocket) => {
 
-    const connectedUserId = Math.floor(Math.random() * 10000).toString();
-    allSocket.set(ws, { userId: connectedUserId, username: "", roomId: "" });
+    // assign temp user
+    const userId = Math.floor(Math.random() * 90000 + 10000).toString();
 
-    ws.on("message", (message: any) => {
-        const response = JSON.parse(message);
+    const newUser: UserI = {
+        userId,
+        username: "",
+        roomId: "",
+        blocked: false,
+        ws
+    };
 
+    allSocket.set(userId, newUser);
 
-        if (response.type === "create") {
+    ws.on("message", raw => {
+        let data: any;
 
-            const { room_name, description, password, username } = response.payload;
+        try {
+            data = JSON.parse(raw.toString());
+        } catch {
+            return ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
+        }
 
-            if (!room_name || !description || !password || !username) {
-                ws.send(JSON.stringify({ type: "error", message: "Invalid Input" }));
-                return;
-            }
+        // =================================================================
+        // CREATE ROOM
+        // =================================================================
+        if (data.type === "create") {
+            const { room_name, description, password, username } = data.payload;
 
-            const roomExists = Array.from(availableRooms.values())
-                .some(r => r.room_name === room_name);
+            if (!room_name || !description || !password || !username)
+                return ws.send(JSON.stringify({ type: "error", message: "Invalid Input" }));
 
-            if (roomExists) {
-                ws.send(JSON.stringify({ type: "error", message: "Room Already Exists" }));
-                return;
-            }
+            const exists = [...availableRooms.values()]
+                .find(r => r.room_name === room_name);
 
-            const roomId = Math.floor(Math.random() * 10000).toString();
+            if (exists)
+                return ws.send(JSON.stringify({ type: "error", message: "Room Already Exists" }));
 
-            allSocket.set(ws, { userId: connectedUserId, username, roomId });
+            const roomId = Math.floor(Math.random() * 90000 + 10000).toString();
 
-            availableRooms.set(roomId, {
+            const user = allSocket.get(userId)!;
+            user.username = username;
+            user.roomId = roomId;
+
+            const room: RoomI = {
+                roomId,
                 room_name,
                 description,
                 password,
-                roomId,
-                members: [{ username, userId: connectedUserId, roomId }],
-                owner: { username, userId: connectedUserId },
+                members: [user],
+                owner: { userId, username },
                 total: 1
-            });
+            };
+
+            availableRooms.set(roomId, room);
 
             ws.send(JSON.stringify({
                 type: "room-created-success",
@@ -53,191 +70,224 @@ wss.on("connection", (ws) => {
                     roomId,
                     room_name,
                     description,
-                    password: password,
+                    username,
+                    password,
                     admin: username,
-                    username: username,
-                    userId: connectedUserId
-                }
+                    total: room.total, 
+                    userId,
 
+                }
             }));
             return;
         }
 
-        if (response.type === "join") {
-            const { username, roomId, password } = response.payload;
-
-            if (!username || !roomId) {
-                ws.send(JSON.stringify({ type: "error", message: "Invalid input" }));
-                return;
-            }
+        // =================================================================
+        // JOIN ROOM
+        // =================================================================
+        if (data.type === "join") {
+            const { username, roomId, password } = data.payload;
 
             const room = availableRooms.get(roomId);
+            if (!room)
+                return ws.send(JSON.stringify({ type: "error", message: "Room Not Found" }));
 
-            if (!room) {
-                ws.send(JSON.stringify({ type: "error", message: "Room not found" }));
-                return;
+            if (room.password !== password)
+                return ws.send(JSON.stringify({ type: "error", message: "Wrong Password" }));
+
+            const user = allSocket.get(userId)!;
+
+            if (user.blocked)
+                return ws.send(JSON.stringify({ type: "error", message: "You are blocked" }));
+
+            // Update user
+            user.username = username;
+            user.roomId = roomId;
+
+            // Prevent double join
+            if (!room.members.find(m => m.userId === userId)) {
+                room.members.push(user);
+                room.total++;
             }
 
-            if (room.password !== password) {
-                ws.send(JSON.stringify({ type: "error", message: "Wrong password" }));
-                return;
-            }
-
-            // Update socket user details
-            allSocket.set(ws, { userId: connectedUserId, username, roomId });
-
-            // Add user to room
-            room.members.push({ username, userId: connectedUserId, roomId });
-            room.total++;
-
-            // Format members list for UI (username only)
-            const formattedMembers = room.members.map(m => ({
-                username: m.username
-            }));
-
-            // Notify other members
-            for (const member of room.members) {
-
-                const memberSocket = [...allSocket.entries()]
-                    .find(([sock, u]) => u.userId === member.userId)?.[0];
-
-                if (!memberSocket) continue;
-
-                // Skip sending join notification to the joining user
-                if (member.userId === connectedUserId) continue;
-
-                memberSocket.send(JSON.stringify({
-                    type: "join-notification",
-                    message: `${username} joined the room`,
-                    payload: {
-                        members: formattedMembers,
-                        total: room.total
-                    }
+            const membersList = room.members
+                .filter(m => !m.blocked)
+                .map(m => ({
+                    userId: m.userId,
+                    username: m.username
                 }));
-            }
 
-            // Send success response to the joining user
+            // notify everyone
+            for (const m of room.members) {
+                if(m.userId === userId) continue;
+                if (!m.blocked) {
+                    m.ws?.send(JSON.stringify({
+                        type: "join-notification",
+                        payload: {
+                            members: membersList,
+                            total: room.total,
+                            joinUser: username
+                        }
+                    }));
+                }
+            };
+
+            // send back to joining user
             ws.send(JSON.stringify({
                 type: "joined-room",
-                message: "Joined Room Successfully",
                 payload: {
-                    roomId: room.roomId,
+                    roomId,
                     room_name: room.room_name,
                     description: room.description,
+                    password : room.password,
                     username,
                     admin: room.owner.username,
                     total: room.total,
-                    members: formattedMembers
+                    members: membersList,
+                    userId
                 }
             }));
+            return;
+        }
+
+        // =================================================================
+        // CHAT MESSAGE
+        // =================================================================
+        if (data.type === "chat") {
+            const { userId, roomId, message } = data.payload;
+
+            const room = availableRooms.get(roomId);
+            if (!room) return;
+
+            const user = room.members.find(m => m.userId === userId);
+            if (!user || user.blocked) return;
+
+            room.members.forEach(m => {
+                if (!m.blocked) {
+                    m.ws?.send(JSON.stringify({
+                        type: "chat-message",
+                        payload: {
+                            username: user.username,
+                            userId,
+                            roomId,
+                            message
+                        }
+                    }));
+                }
+            });
+            return;
+        }
+
+        // =================================================================
+        // TYPING START
+        // =================================================================
+        if (data.type === "typing") {
+            const { userId, roomId } = data.payload;
+
+            const room = availableRooms.get(roomId);
+            if (!room) return;
+
+            const user = room.members.find(m => m.userId === userId);
+            if (!user || user.blocked) return;
+
+            room.members.forEach(m => {
+                if (!m.blocked && m.userId !== userId) {
+                    m.ws?.send(JSON.stringify({
+                        type: "typing",
+                        payload: { userId, username: user.username }
+                    }));
+                }
+            });
 
             return;
         }
 
-        if (response.type === "chat") {
-            const { userId, roomId, message } = response.payload;
+        // =================================================================
+        // TYPING END  (FIX ADDED)
+        // =================================================================
+        if (data.type === "typing-done") {
+            const { userId, roomId } = data.payload;
 
             const room = availableRooms.get(roomId);
-            if (!room) {
-                ws.send(JSON.stringify({ type: "error", message: "Room Not Found" }));
-                return;
-            }
+            if (!room) return;
 
-            const userExist = room.members.find(m => m.userId === userId);
-            if (!userExist) {
-                ws.send(JSON.stringify({ type: "error", message: "User Does Not Exist" }));
-                return;
-            }
+            room.members.forEach(m => {
+                if (!m.blocked && m.userId !== userId) {
+                    m.ws?.send(JSON.stringify({
+                        type: "typing-done",
+                        payload: { userId }
+                    }));
+                }
+            });
 
-            for (const member of room.members) {
-
-                const memberSocket = [...allSocket.entries()]
-                    .find(([sock, u]) => u.userId === member.userId)?.[0];
-
-                if (!memberSocket) continue;
-
-
-                memberSocket.send(JSON.stringify({
-                    type: "chat-message",
-                    payload: { username: userExist.username, userId, roomId, message }
-                }));
-            }
+            return;
         }
 
-        if (response.type === "type") {
-            const { userId, roomId } = response.payload;
+        // =================================================================
+        // KICK (BLOCK USER)
+        // =================================================================
+        if (data.type === "kick") {
+            const { roomId, targetId, userId } = data.payload;
 
             const room = availableRooms.get(roomId);
+            if (!room) return;
 
-            if (!room) {
-                ws.send(JSON.stringify({ type: "error", message: "Room Doesnt Exist" }));
-                return;
-            }
+            if (room.owner.userId !== userId)
+                return ws.send(JSON.stringify({ type: "error", message: "Not Admin" }));
 
-            const user = room.members.find((s) => s.userId === userId);
-            if (!user) {
-                ws.send(JSON.stringify({ type: "error", message: "User Doent Exist in The Room" }));
-                return;
-            }
+            const target = room.members.find(m => m.userId === targetId);
 
-            for (const member of room.members) {
-                const memberSocket = [...allSocket.entries()]
-                    .find(([sock, u]) => u.userId === member.userId)?.[0];
+            if (!target)
+                return ws.send(JSON.stringify({ type: "error", message: "User Not Found" }));
+            const username = target.username
+            target.blocked = true;
+            target.ws?.send(JSON.stringify({ type: "kicked", message: "You are blocked" }));
+            target.ws?.close();
 
-                if (!memberSocket) continue;
-                if (member.userId === userId) continue; // skip yourself
+            // notify others
+            room.members.forEach(m => {
+                if (!m.blocked) {
+                    m.ws?.send(JSON.stringify({
+                        type: "kick-notification",
+                        payload: { targetId,username }
+                    }));
+                }
+            });
 
-                memberSocket.send(JSON.stringify({
-                    type: "typing",
-                    payload: { userId, roomId, username: user.username }
-                }));
-            }
-
+            return;
         }
 
     });
 
+    // =================================================================
+    // USER SOCKET CLOSED
+    // =================================================================
     ws.on("close", () => {
-        const user = allSocket.get(ws);
+        const user = allSocket.get(userId);
         if (!user) return;
 
-        const { userId, username, roomId } = user;
+        const { username, roomId } = user;
         const room = availableRooms.get(roomId);
-        if (!room) {
-            allSocket.delete(ws);
-            return;
-        }
-        room.members = room.members.filter(m => m.userId !== userId);
 
-        const formattedMembers = room.members.map(m => ({
-            username: m.username
-        }));
+        if (room) {
+            room.members = room.members.filter(m => m.userId !== userId);
+            room.total--;
 
-        for (const member of room.members) {
-            const memberSocket = [...allSocket.entries()]
-                .find(([sock, u]) => u.userId === member.userId)?.[0];
+            const membersLeft = room.members
+                .filter(m => !m.blocked)
+                .map(m => ({ userId: m.userId, username: m.username }));
 
-            if (!memberSocket) continue;
-
-            memberSocket.send(JSON.stringify({
-                type: "leave-notification",
-                message: `${username} left the room`,
-                payload: {
-                    members: formattedMembers,
-                    total: room.total
+            room.members.forEach(m => {
+                if (!m.blocked) {
+                    m.ws?.send(JSON.stringify({
+                        type: "leave-notification",
+                        payload: { username, members: membersLeft, total: room.total }
+                    }));
                 }
-            }));
+            });
+
+            if (room.total === 0) availableRooms.delete(roomId);
         }
 
-        allSocket.delete(ws);
-
-        // If room becomes empty → delete room
-        if (room.total === 0) {
-            availableRooms.delete(roomId);
-        }
-
-    })
-
-
-
+        allSocket.delete(userId);
+    });
 });
