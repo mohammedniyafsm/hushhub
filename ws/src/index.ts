@@ -1,11 +1,18 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { RoomI, UserI } from "./types/type.js";
-
+import http from "http"
 // Maps
 const allSocket = new Map<string, UserI>();       // key = userId
 const availableRooms = new Map<string, RoomI>();  // key = roomId
 
-const wss = new WebSocketServer({ port: 8080 });
+const server = http.createServer();
+
+
+const wss = new WebSocketServer({ server });
+
+server.listen(8080, () => {
+    console.log("WebSocket Server running on port 8080");
+})
 
 wss.on("connection", (ws: WebSocket) => {
 
@@ -73,7 +80,7 @@ wss.on("connection", (ws: WebSocket) => {
                     username,
                     password,
                     admin: username,
-                    total: room.total, 
+                    total: room.total,
                     userId,
 
                 }
@@ -118,7 +125,7 @@ wss.on("connection", (ws: WebSocket) => {
 
             // notify everyone
             for (const m of room.members) {
-                if(m.userId === userId) continue;
+                if (m.userId === userId) continue;
                 if (!m.blocked) {
                     m.ws?.send(JSON.stringify({
                         type: "join-notification",
@@ -138,7 +145,7 @@ wss.on("connection", (ws: WebSocket) => {
                     roomId,
                     room_name: room.room_name,
                     description: room.description,
-                    password : room.password,
+                    password: room.password,
                     username,
                     admin: room.owner.username,
                     total: room.total,
@@ -248,7 +255,7 @@ wss.on("connection", (ws: WebSocket) => {
                 if (!m.blocked) {
                     m.ws?.send(JSON.stringify({
                         type: "kick-notification",
-                        payload: { targetId,username }
+                        payload: { targetId, username }
                     }));
                 }
             });

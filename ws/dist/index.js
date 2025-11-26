@@ -1,8 +1,13 @@
 import { WebSocketServer, WebSocket } from "ws";
+import http from "http";
 // Maps
 const allSocket = new Map(); // key = userId
 const availableRooms = new Map(); // key = roomId
-const wss = new WebSocketServer({ port: 8080 });
+const server = http.createServer();
+const wss = new WebSocketServer({ server });
+server.listen(8080, () => {
+    console.log("WebSocket Server running on port 8080");
+});
 wss.on("connection", (ws) => {
     // assign temp user
     const userId = Math.floor(Math.random() * 90000 + 10000).toString();
