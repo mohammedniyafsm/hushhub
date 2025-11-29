@@ -7,27 +7,20 @@ import type { RoomI, UserI } from "./types/type.js";
 const allSocket = new Map<string, UserI>();       // key = userId
 const availableRooms = new Map<string, RoomI>();  // key = roomId
 
-// ================================
-// EXPRESS + HTTP SERVER (RENDER FIX)
-// ================================
+
 const app = express();
 app.get("/", (_req, res) => res.send("WebSocket server running"));
 
-// Create HTTP server for WS
 const server = http.createServer(app);
 
-// Attach WebSocket to HTTP server
 const wss = new WebSocketServer({ server });
 
-// Required on Render
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
     console.log("WebSocket Server running on port " + PORT);
 });
 
-// ================================
-//    WEBSOCKET LOGIC (UNTOUCHED)
-// ================================
+
 wss.on("connection", (ws: WebSocket) => {
 
     // assign temp user

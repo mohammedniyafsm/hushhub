@@ -77,7 +77,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     const wsUrl =
       process.env.NODE_ENV === "development"
         ? "ws://localhost:8080"
-        : "wss://your-domain.com";
+        : `${process.env.NEXT_PUBLIC_WS_URL}`;
 
     socket.current = new WebSocket(wsUrl);
     const ws = socket.current;

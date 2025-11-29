@@ -1,13 +1,26 @@
+import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
 // Maps
 const allSocket = new Map(); // key = userId
 const availableRooms = new Map(); // key = roomId
-const server = http.createServer();
+// ================================
+// EXPRESS + HTTP SERVER (RENDER FIX)
+// ================================
+const app = express();
+app.get("/", (_req, res) => res.send("WebSocket server running"));
+// Create HTTP server for WS
+const server = http.createServer(app);
+// Attach WebSocket to HTTP server
 const wss = new WebSocketServer({ server });
-server.listen(8080, () => {
-    console.log("WebSocket Server running on port 8080");
+// Required on Render
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log("WebSocket Server running on port " + PORT);
 });
+// ================================
+//    WEBSOCKET LOGIC (UNTOUCHED)
+// ================================
 wss.on("connection", (ws) => {
     // assign temp user
     const userId = Math.floor(Math.random() * 90000 + 10000).toString();
@@ -27,9 +40,9 @@ wss.on("connection", (ws) => {
         catch {
             return ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
         }
-        // =================================================================
+        // =====================================================================
         // CREATE ROOM
-        // =================================================================
+        // =====================================================================
         if (data.type === "create") {
             const { room_name, description, password, username } = data.payload;
             if (!room_name || !description || !password || !username)
@@ -62,14 +75,14 @@ wss.on("connection", (ws) => {
                     password,
                     admin: username,
                     total: room.total,
-                    userId,
+                    userId
                 }
             }));
             return;
         }
-        // =================================================================
+        // =====================================================================
         // JOIN ROOM
-        // =================================================================
+        // =====================================================================
         if (data.type === "join") {
             const { username, roomId, password } = data.payload;
             const room = availableRooms.get(roomId);
@@ -109,7 +122,6 @@ wss.on("connection", (ws) => {
                     }));
                 }
             }
-            ;
             // send back to joining user
             ws.send(JSON.stringify({
                 type: "joined-room",
@@ -127,9 +139,9 @@ wss.on("connection", (ws) => {
             }));
             return;
         }
-        // =================================================================
+        // =====================================================================
         // CHAT MESSAGE
-        // =================================================================
+        // =====================================================================
         if (data.type === "chat") {
             const { userId, roomId, message } = data.payload;
             const room = availableRooms.get(roomId);
@@ -153,9 +165,9 @@ wss.on("connection", (ws) => {
             });
             return;
         }
-        // =================================================================
+        // =====================================================================
         // TYPING START
-        // =================================================================
+        // =====================================================================
         if (data.type === "typing") {
             const { userId, roomId } = data.payload;
             const room = availableRooms.get(roomId);
@@ -174,9 +186,9 @@ wss.on("connection", (ws) => {
             });
             return;
         }
-        // =================================================================
-        // TYPING END  (FIX ADDED)
-        // =================================================================
+        // =====================================================================
+        // TYPING END
+        // =====================================================================
         if (data.type === "typing-done") {
             const { userId, roomId } = data.payload;
             const room = availableRooms.get(roomId);
@@ -192,9 +204,9 @@ wss.on("connection", (ws) => {
             });
             return;
         }
-        // =================================================================
+        // =====================================================================
         // KICK (BLOCK USER)
-        // =================================================================
+        // =====================================================================
         if (data.type === "kick") {
             const { roomId, targetId, userId } = data.payload;
             const room = availableRooms.get(roomId);
@@ -221,9 +233,9 @@ wss.on("connection", (ws) => {
             return;
         }
     });
-    // =================================================================
+    // =====================================================================
     // USER SOCKET CLOSED
-    // =================================================================
+    // =====================================================================
     ws.on("close", () => {
         const user = allSocket.get(userId);
         if (!user)
