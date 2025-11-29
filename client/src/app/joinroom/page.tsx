@@ -47,10 +47,10 @@ export default function JoinRoom() {
 
       {/* Foreground Text */}
       <div className="pb-40 sm:pb-10 relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
-        <h1 className={`${bricolage_grotesque} md:text-5xl sm:text-4xl text-2xl font-bold text-white`}>
+        <h1 className={`${bricolage_grotesque} md:text-5xl sm:text-4xl text-2xl font-bold text-foreground`}>
           Welcome to HushHub
         </h1>
-        <p className={`${inter} text-xs md:text-md mt-4 text-gray-200 max-w-xl`}>
+        <p className={`${inter} text-xs md:text-md mt-4 text-foreground  max-w-xl`}>
           Enter your private space and connect securely with others.
         </p>
         <div className="flex flex-col mt-6 gap-4">

@@ -49,14 +49,14 @@ function createroom() {
 
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black">
+    <div className="relative h-screen w-full overflow-hidden ">
       {/* Particle Background */}
       <Particles className="absolute inset-0 z-0" />
 
       {/* Foreground Content */}
       <div className="sm:pb-20 pb-40 relative z-10 flex flex-col items-center justify-center h-full text-center px-4">
         <h1
-          className={`${bricolage_grotesque} text-4xl sm:text-5xl md:text-6xl font-bold text-white drop-shadow-md`}
+          className={`${bricolage_grotesque} text-4xl sm:text-5xl md:text-6xl font-bold text-foreground drop-shadow-md`}
         >
           Create Room
         </h1>

@@ -89,7 +89,7 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
 
     ws.onerror = () => {
       setConnected(false);
-      console.error("WS error");
+      console.log("WS error");
     };
 
     ws.onclose = () => {
